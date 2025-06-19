@@ -47,17 +47,17 @@
                 <!-- Countdown Timer -->
                 <div class="flash-timer bg-black bg-opacity-30 text-white px-4 py-2 rounded-lg flex items-center">
                     <div class="text-center mr-2">
-                        <span id="hours" class="block text-xl font-bold">02</span>
+                        <span id="hours" class="block text-xl font-bold">00</span>
                         <span class="text-xs">Jam</span>
                     </div>
                     <span class="text-xl">:</span>
                     <div class="text-center mx-2">
-                        <span id="minutes" class="block text-xl font-bold">45</span>
+                        <span id="minutes" class="block text-xl font-bold">00</span>
                         <span class="text-xs">Menit</span>
                     </div>
                     <span class="text-xl">:</span>
                     <div class="text-center ml-2">
-                        <span id="seconds" class="block text-xl font-bold">30</span>
+                        <span id="seconds" class="block text-xl font-bold">00</span>
                         <span class="text-xs">Detik</span>
                     </div>
                 </div>
@@ -151,24 +151,30 @@
     </div>
 
     <script>
-        // Atur waktu akhir countdown (dalam detik)
-        // Contoh: 4 jam = 4 * 60 * 60 = 14400 detik
-        // Anda bisa mengubah angka ini sesuai kebutuhan
-        const totalTime = 86400; // 3 jam (10800 detik)
-        
-        // Variabel untuk menyimpan sisa waktu
-        let timeRemaining = totalTime;
-        
+        // Waktu countdown dalam detik (24 jam)
+        const countdownDuration = 24 * 60 * 60; // 24 jam dalam detik
+
+        // Cek apakah waktu akhir sudah disimpan di localStorage
+        let endTime = localStorage.getItem('endTime');
+        if (!endTime) {
+            // Jika belum ada, set waktu akhir
+            endTime = Date.now() + countdownDuration * 1000; // Waktu sekarang + durasi countdown
+            localStorage.setItem('endTime', endTime);
+        }
+
         // Fungsi untuk memperbarui countdown setiap detik
         function updateCountdown() {
+            const now = Date.now();
+            const timeRemaining = Math.max(0, Math.floor((endTime - now) / 1000)); // Hitung sisa waktu
+
             const hours = Math.floor(timeRemaining / 3600);
             const minutes = Math.floor((timeRemaining % 3600) / 60);
             const seconds = timeRemaining % 60;
-            
+
             document.getElementById('hours').textContent = hours.toString().padStart(2, '0');
             document.getElementById('minutes').textContent = minutes.toString().padStart(2, '0');
             document.getElementById('seconds').textContent = seconds.toString().padStart(2, '0');
-            
+
             if (timeRemaining <= 0) {
                 // Waktu habis
                 clearInterval(countdownInterval);
@@ -176,11 +182,9 @@
                 
                 // Anda bisa tambahkan logika lain ketika waktu habis
                 // Misalnya disable tombol beli, dll
-            } else {
-                timeRemaining--;
             }
         }
-        
+
         // Mulai countdown
         const countdownInterval = setInterval(updateCountdown, 1000);
         
