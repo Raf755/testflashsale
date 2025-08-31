@@ -1,202 +1,201 @@
 <!DOCTYPE html><html lang="id">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>QRIS Dinamis → Statis</title>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.3/build/qrcode.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>
   <style>
-    .page { display: none; }
-    .page.active { display: block; }
+    body { font-family: Arial, sans-serif; margin: 20px; }
+    .hidden { display: none; }
+    .menu, .setting, .qris { margin-top: 20px; }
+    #timer { color: red; font-weight: bold; margin-top: 10px; }
+    canvas { margin-top: 10px; }
+    button { margin: 5px; padding: 10px 20px; }
   </style>
 </head>
-<body class="min-h-screen bg-gray-50 text-gray-900">
-  <div class="max-w-xl mx-auto p-4 sm:p-6">
-    <header class="flex items-center justify-between mb-6">
-      <h1 class="text-2xl font-bold">QRIS Dinamis → Statis</h1>
-      <button id="btnHome" class="text-sm text-blue-600 underline">Beranda</button>
-    </header><!-- Home -->
-<section id="home" class="page active">
-  <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
-    <button id="gotoQRIS" class="p-6 rounded-2xl bg-white shadow hover:shadow-md transition text-center">
-      <div class="text-3xl mb-2">💳</div>
-      <div class="font-semibold">QRIS</div>
-      <p class="text-sm text-gray-500">Masukkan nominal & generate</p>
-    </button>
-    <button id="gotoSetting" class="p-6 rounded-2xl bg-white shadow hover:shadow-md transition text-center">
-      <div class="text-3xl mb-2">⚙️</div>
-      <div class="font-semibold">Setting</div>
-      <p class="text-sm text-gray-500">Upload & simpan data QRIS</p>
-    </button>
-  </div>
-</section>
+<body>
+  <h2>Aplikasi QRIS Dinamis → Statis</h2>  <div id="menu" class="menu">
+    <button onclick="showSetting()">Setting</button>
+    <button onclick="showQris()">QRIS</button>
+  </div>  <div id="setting" class="setting hidden">
+    <h3>Setting</h3>
+    <input type="file" id="upload" accept="image/*"><br>
+    <img id="preview" src="" style="max-width:200px; display:none; margin-top:10px;">
+    <textarea id="payload" placeholder="Payload QRIS" style="width:100%; height:100px; margin-top:10px;"></textarea><br>
+    <button onclick="clearUpload()">Hapus</button>
+    <button onclick="backToMenu()">Kembali</button>
+  </div>  <div id="qris" class="qris hidden">
+    <h3>Generate QRIS Statis</h3>
+    <input type="number" id="nominal" placeholder="Masukkan nominal"><br>
+    <button onclick="generateQris()">Generate</button>
+    <canvas id="qrisCanvas"></canvas>
+    <div id="timer"></div>
+    <button id="doneBtn" class="hidden" onclick="resetQris()">Selesai</button>
+    <button onclick="backToMenu()">Kembali</button>
+  </div><script>
+let countdown;
+let payload = "";
 
-<!-- Setting -->
-<section id="setting" class="page">
-  <div class="bg-white rounded-2xl shadow p-4 sm:p-6 space-y-4">
-    <h2 class="text-xl font-semibold">Setting QRIS</h2>
+function showSetting(){
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("setting").classList.remove("hidden");
+}
 
-    <div class="space-y-2">
-      <label class="block text-sm font-medium">Payload QRIS (teks EMV)</label>
-      <textarea id="payload" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 p-3 h-32" placeholder="Contoh: 00020101021226...6304ABCD"></textarea>
-      <p class="text-xs text-gray-500">Tempelkan payload QRIS asli (atau otomatis terisi dari gambar QR).</p>
-    </div>
+function showQris(){
+  document.getElementById("menu").classList.add("hidden");
+  document.getElementById("qris").classList.remove("hidden");
+}
 
-    <div class="space-y-2">
-      <label class="block text-sm font-medium">Upload Gambar QRIS</label>
-      <input id="file" type="file" accept="image/*" class="block w-full text-sm" />
-      <div id="previewWrap" class="mt-3 hidden">
-        <img id="preview" class="max-h-40 mx-auto rounded-lg border" alt="Preview QR" />
-        <button id="btnHapusGambar" class="mt-3 px-3 py-2 rounded-lg bg-red-50 text-red-700 hover:bg-red-100">Hapus Gambar</button>
-      </div>
-      <div id="scanResult" class="text-xs text-emerald-600 font-mono mt-2 hidden"></div>
-    </div>
+function backToMenu(){
+  document.getElementById("setting").classList.add("hidden");
+  document.getElementById("qris").classList.add("hidden");
+  document.getElementById("menu").classList.remove("hidden");
+}
 
-    <div class="flex items-center gap-2">
-      <button id="btnSimpanSetting" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">Simpan</button>
-      <button id="btnResetSetting" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Reset</button>
-    </div>
-  </div>
-</section>
+function clearUpload(){
+  document.getElementById("upload").value = "";
+  document.getElementById("preview").style.display = "none";
+  document.getElementById("payload").value = "";
+  payload = "";
+}
 
-<!-- QRIS Generate -->
-<section id="qris" class="page">
-  <div class="bg-white rounded-2xl shadow p-4 sm:p-6">
-    <h2 class="text-xl font-semibold mb-4">Buat QRIS Statis dengan Nominal</h2>
-    <div class="space-y-3">
-      <div>
-        <label class="block text-sm font-medium">Nominal (Rp)</label>
-        <input id="nominal" type="number" min="1" step="1" class="w-full rounded-xl border-gray-300 focus:border-blue-500 focus:ring-blue-500 p-3" placeholder="cth: 25000" />
-      </div>
-      <div class="flex items-center gap-2">
-        <button id="btnGenerate" class="px-4 py-2 rounded-xl bg-blue-600 text-white hover:bg-blue-700">Generate</button>
-        <button id="btnClear" class="px-4 py-2 rounded-xl bg-gray-100 hover:bg-gray-200">Bersihkan</button>
-      </div>
-    </div>
+// upload & baca QR
+const uploadInput = document.getElementById("upload");
+const preview = document.getElementById("preview");
 
-    <div id="result" class="mt-6 hidden">
-      <div class="flex flex-col items-center gap-3">
-        <div id="qr" class="bg-white p-3 rounded-xl border"></div>
-        <div id="timer" class="text-red-600 font-semibold">20:00</div>
-        <button id="btnSelesai" class="mt-2 px-4 py-2 rounded-xl bg-emerald-600 text-white hover:bg-emerald-700">Selesai</button>
-        <details class="mt-2 w-full">
-          <summary class="cursor-pointer text-sm text-gray-700">Lihat payload hasil</summary>
-          <pre id="payloadHasil" class="mt-2 p-3 bg-gray-50 rounded-xl text-xs overflow-x-auto"></pre>
-        </details>
-      </div>
-    </div>
+uploadInput.addEventListener("change", function(){
+  const file = this.files[0];
+  if(file){
+    const reader = new FileReader();
+    reader.onload = function(e){
+      preview.src = e.target.result;
+      preview.style.display = "block";
 
-    <div id="noPayloadWarn" class="mt-6 p-3 rounded-xl bg-red-50 text-red-700 hidden">
-      Payload QRIS belum diisi. Buka menu <strong>Setting</strong> dan tempelkan payload Anda terlebih dahulu.
-    </div>
-  </div>
-</section>
-
-  </div>  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>  <script src="https://cdn.jsdelivr.net/npm/jsqr/dist/jsQR.js"></script>  <script>
-    function parseEMV(str) { /* sama seperti sebelumnya */ }
-    function getMap(items) { /* sama */ }
-    function buildEMV(map) { /* sama */ }
-    function crc16ccitt(str) { /* sama */ }
-    function toAmountString(rp) { /* sama */ }
-
-    const store = { set(k,v){localStorage.setItem(k,JSON.stringify(v))}, get(k,d=null){try{return JSON.parse(localStorage.getItem(k))??d}catch{return d}}, del(k){localStorage.removeItem(k)} };
-
-    const els = {
-      pages:{ home:document.getElementById('home'), setting:document.getElementById('setting'), qris:document.getElementById('qris') },
-      btnHome:document.getElementById('btnHome'),
-      gotoQRIS:document.getElementById('gotoQRIS'),
-      gotoSetting:document.getElementById('gotoSetting'),
-      payload:document.getElementById('payload'),
-      file:document.getElementById('file'),
-      previewWrap:document.getElementById('previewWrap'),
-      preview:document.getElementById('preview'),
-      btnHapusGambar:document.getElementById('btnHapusGambar'),
-      btnSimpanSetting:document.getElementById('btnSimpanSetting'),
-      btnResetSetting:document.getElementById('btnResetSetting'),
-      nominal:document.getElementById('nominal'),
-      btnGenerate:document.getElementById('btnGenerate'),
-      btnClear:document.getElementById('btnClear'),
-      result:document.getElementById('result'),
-      qr:document.getElementById('qr'),
-      timer:document.getElementById('timer'),
-      btnSelesai:document.getElementById('btnSelesai'),
-      noPayloadWarn:document.getElementById('noPayloadWarn'),
-      payloadHasil:document.getElementById('payloadHasil'),
-      scanResult:document.getElementById('scanResult'),
-    };
-
-    function show(page){ Object.values(els.pages).forEach(p=>p.classList.remove('active')); els.pages[page].classList.add('active'); }
-
-    function loadSetting(){
-      els.payload.value = store.get('payload','');
-      const img = store.get('qrImg',null);
-      if(img){ els.preview.src=img; els.previewWrap.classList.remove('hidden'); } else { els.preview.src=''; els.previewWrap.classList.add('hidden'); }
-    }
-
-    els.btnHome.onclick=()=>show('home');
-    els.gotoQRIS.onclick=()=>{show('qris'); refreshQRISPage();};
-    els.gotoSetting.onclick=()=>{show('setting'); loadSetting();};
-
-    els.file.onchange=async e=>{
-      const f=e.target.files?.[0]; if(!f)return;
-      const url=await fileToDataURL(f);
-      store.set('qrImg',url);
-      els.preview.src=url; els.previewWrap.classList.remove('hidden');
-      // coba decode
-      decodeQRFromFile(f);
-    };
-
-    els.btnHapusGambar.onclick=()=>{ store.del('qrImg'); els.preview.src=''; els.previewWrap.classList.add('hidden'); els.scanResult.classList.add('hidden'); };
-
-    els.btnSimpanSetting.onclick=()=>{ store.set('payload',(els.payload.value||'').trim()); alert('Setting disimpan.'); };
-    els.btnResetSetting.onclick=()=>{ els.payload.value=''; store.del('payload'); alert('Setting direset.'); };
-
-    function fileToDataURL(file){ return new Promise((res,rej)=>{ const r=new FileReader(); r.onload=()=>res(r.result); r.onerror=rej; r.readAsDataURL(file); }); }
-
-    function decodeQRFromFile(file){
-      const reader=new FileReader();
-      reader.onload=()=>{
-        const img=new Image();
-        img.onload=()=>{
-          const canvas=document.createElement('canvas');
-          canvas.width=img.width; canvas.height=img.height;
-          const ctx=canvas.getContext('2d');
-          ctx.drawImage(img,0,0);
-          const imageData=ctx.getImageData(0,0,canvas.width,canvas.height);
-          const code=jsQR(imageData.data,canvas.width,canvas.height);
-          if(code){
-            els.payload.value=code.data;
-            store.set('payload',code.data);
-            els.scanResult.textContent='Payload terdeteksi dari gambar: '+code.data.slice(0,40)+'...';
-            els.scanResult.classList.remove('hidden');
-          } else {
-            els.scanResult.textContent='Gagal membaca QR dari gambar.';
-            els.scanResult.classList.remove('hidden');
-          }
-        };
-        img.src=reader.result;
+      const img = new Image();
+      img.onload = function(){
+        const canvas = document.createElement("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = img.width;
+        canvas.height = img.height;
+        ctx.drawImage(img, 0, 0, img.width, img.height);
+        const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+        const code = jsQR(imageData.data, canvas.width, canvas.height);
+        if(code){
+          document.getElementById("payload").value = code.data;
+          payload = code.data;
+          alert("Payload QRIS berhasil dibaca!");
+        }else{
+          alert("Gagal membaca QR, pastikan gambar jelas.");
+        }
       };
-      reader.readAsDataURL(file);
+      img.src = e.target.result;
     }
+    reader.readAsDataURL(file);
+  }
+});
 
-    // Timer & generate (sama seperti sebelumnya)
-    let timerId=null, deadline=null;
-    function refreshQRISPage(){ stopTimer(); els.result.classList.add('hidden'); els.qr.innerHTML=''; els.payloadHasil.textContent=''; }
-    function startTimer(min=20){ deadline=Date.now()+min*60*1000; updateTimer(); timerId=setInterval(updateTimer,1000);} 
-    function stopTimer(){ if(timerId){clearInterval(timerId);timerId=null;} }
-    function updateTimer(){ const remain=Math.max(0,deadline-Date.now()); const m=Math.floor(remain/60000); const s=Math.floor((remain%60000)/1000); els.timer.textContent=`${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; if(remain<=0){stopTimer();alert('Waktu habis.');refreshQRISPage();} }
+function generateQris(){
+  payload = document.getElementById("payload").value.trim();
+  const nominal = document.getElementById("nominal").value.trim();
+  if(!payload){
+    alert("Payload belum ada, upload QRIS dulu!");
+    return;
+  }
+  if(!nominal){
+    alert("Masukkan nominal!");
+    return;
+  }
 
-    els.btnGenerate.onclick=()=>{
-      const base=(store.get('payload','')||'').trim(); if(!base){els.noPayloadWarn.classList.remove('hidden');return;}
-      const rp=Number(els.nominal.value||0); if(!rp||rp<=0){alert('Nominal tidak valid');return;}
-      let items=parseEMV(base); const map=getMap(items); map.set('01','12'); map.set('54',toAmountString(rp));
-      const finalPayload=buildEMV(map);
-      els.qr.innerHTML=''; new QRCode(els.qr,{text:finalPayload,width:240,height:240});
-      els.result.classList.remove('hidden'); els.payloadHasil.textContent=finalPayload; stopTimer(); startTimer(20);
-    };
+  // sisipkan / ganti tag 54 (Amount)
+  let newPayload = setTag54(payload, nominal);
 
-    els.btnClear.onclick=()=>{ els.nominal.value=''; refreshQRISPage(); };
-    els.btnSelesai.onclick=()=>{ stopTimer(); refreshQRISPage(); };
+  // hitung ulang CRC (tag 63)
+  newPayload = setCRC(newPayload);
 
-    loadSetting();
-  </script></body>
+  // generate QR
+  const canvas = document.getElementById("qrisCanvas");
+  QRCode.toCanvas(canvas, newPayload, function (error) {
+    if (error) alert("Gagal generate QR");
+  });
+
+  // tampilkan timer & tombol selesai
+  startTimer();
+  document.getElementById("doneBtn").classList.remove("hidden");
+}
+
+function setTag54(payload, nominal){
+  // cari tag 54
+  let regex = /54(\d{2})(\d*)/;
+  if(regex.test(payload)){
+    // replace
+    payload = payload.replace(regex, function(match, len, val){
+      let newVal = nominal;
+      let newLen = (""+newVal).length.toString().padStart(2,'0');
+      return "54"+newLen+newVal;
+    });
+  }else{
+    // tambahkan sebelum CRC (63)
+    let idx = payload.indexOf("6304");
+    if(idx>-1){
+      let part1 = payload.substring(0, idx);
+      let part2 = payload.substring(idx);
+      let newVal = nominal;
+      let newLen = (""+newVal).length.toString().padStart(2,'0');
+      payload = part1 + "54"+newLen+newVal + part2;
+    }
+  }
+  return payload;
+}
+
+function setCRC(payload){
+  // hapus CRC lama
+  let base = payload.substring(0, payload.indexOf("6304"));
+  let full = base + "6304";
+  let crc = CRC16(full);
+  return full + crc;
+}
+
+function CRC16(str){
+  let crc = 0xFFFF;
+  for (let pos = 0; pos < str.length; pos++) {
+    crc ^= str.charCodeAt(pos) << 8;
+    for (let i = 0; i < 8; i++) {
+      if ((crc & 0x8000) !== 0) {
+        crc = (crc << 1) ^ 0x1021;
+      } else {
+        crc <<= 1;
+      }
+      crc &= 0xFFFF;
+    }
+  }
+  return crc.toString(16).toUpperCase().padStart(4,'0');
+}
+
+function startTimer(){
+  clearInterval(countdown);
+  let duration = 20*60; // 20 menit
+  const display = document.getElementById("timer");
+
+  countdown = setInterval(function(){
+    let minutes = Math.floor(duration/60);
+    let seconds = duration%60;
+    display.textContent = `Sisa waktu: ${minutes}:${seconds.toString().padStart(2,'0')}`;
+    duration--;
+    if(duration<0){
+      clearInterval(countdown);
+      alert("QRIS hangus! Kembali ke form input.");
+      resetQris();
+    }
+  }, 1000);
+}
+
+function resetQris(){
+  clearInterval(countdown);
+  document.getElementById("qrisCanvas").getContext('2d').clearRect(0,0,300,300);
+  document.getElementById("timer").textContent = "";
+  document.getElementById("nominal").value = "";
+  document.getElementById("doneBtn").classList.add("hidden");
+}
+</script></body>
 </html>
